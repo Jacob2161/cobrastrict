@@ -13,7 +13,9 @@ import (
 func ExampleRequireKnown() {
 	root := &cobra.Command{Use: "app", SilenceErrors: true, SilenceUsage: true}
 	lock := &cobra.Command{Use: "lock", Short: "Show and break write locks"}
-	lock.AddCommand(&cobra.Command{Use: "show", RunE: func(*cobra.Command, []string) error { return nil }})
+	lock.AddCommand(
+		&cobra.Command{Use: "show", RunE: func(*cobra.Command, []string) error { return nil }},
+	)
 	root.AddCommand(lock)
 	cobrastrict.RequireKnown(root)
 

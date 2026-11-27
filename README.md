@@ -3,7 +3,8 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/jacob2161/cobrastrict.svg)](https://pkg.go.dev/github.com/jacob2161/cobrastrict)
 [![CI](https://github.com/jacob2161/cobrastrict/actions/workflows/ci.yml/badge.svg)](https://github.com/jacob2161/cobrastrict/actions/workflows/ci.yml)
 
-Strict command groups for cobra: a group fails on a subcommand it does not have (with a near-match suggestion) instead of printing help and exiting 0, and help fails for unknown command paths.
+Strict command groups for cobra: a group fails on a subcommand it does not have (with a near-match
+suggestion) instead of printing help and exiting 0, and help fails for unknown command paths.
 
 ```bash
 go get github.com/jacob2161/cobrastrict
@@ -20,8 +21,10 @@ if _, err := cobrastrict.ExecuteContextC(ctx, root); err != nil {
 }
 ```
 
-- Cobra prints a group's help and exits 0 for `app lock list`, `app bogus --help`, and `app help bogus`, so a typo in a script passes unnoticed. After `RequireKnown`, all of them fail.
-- Errors wrap `ErrUnknownCommand`; `*UnknownCommandError` carries the group, the argument, its available commands, and suggestions, so you can map it to your own exit code or error format.
+- Cobra prints a group's help and exits 0 for `app lock list`, `app bogus --help`, and `app help
+  bogus`, so a typo in a script passes unnoticed. After `RequireKnown`, all of them fail.
+- Errors wrap `ErrUnknownCommand`; `*UnknownCommandError` carries the group, the argument, its
+  available commands, and suggestions, so you can map it to your own exit code or error format.
 - Shell completion after `help` still works.
 
 Tested on the two newest Go releases. Licensed under the MIT license.

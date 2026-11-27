@@ -34,9 +34,15 @@ type UnknownCommandError struct {
 	Suggestions []string
 }
 
+// Error names the argument, the group, the group's commands, and any near
+// matches.
 func (e *UnknownCommandError) Error() string {
 	if len(e.Available) == 0 {
-		return fmt.Sprintf("unknown command %q for %q, which has no subcommands", e.Name, e.Command.CommandPath())
+		return fmt.Sprintf(
+			"unknown command %q for %q, which has no subcommands",
+			e.Name,
+			e.Command.CommandPath(),
+		)
 	}
 	message := fmt.Sprintf(
 		"unknown command %q for %q; its commands are %s",

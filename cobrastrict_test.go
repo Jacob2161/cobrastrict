@@ -12,7 +12,7 @@ import (
 
 // newLockTree is a root with a lock group of two commands, and a replicate
 // command that runs by itself and has a list subcommand.
-func newLockTree() (root *cobra.Command, replicateRuns *int) {
+func newLockTree() (root *cobra.Command, replicateCalls *int) {
 	root = &cobra.Command{Use: "app", SilenceErrors: true, SilenceUsage: true}
 	lock := &cobra.Command{Use: "lock", Short: "Show and break write locks"}
 	for _, name := range []string{"show", "break"} {
@@ -21,12 +21,12 @@ func newLockTree() (root *cobra.Command, replicateRuns *int) {
 			RunE: func(command *cobra.Command, arguments []string) error { return nil },
 		})
 	}
-	runs := 0
+	calls := 0
 	replicate := &cobra.Command{
 		Use:  "replicate <NAME>",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(command *cobra.Command, arguments []string) error {
-			runs++
+			calls++
 			return nil
 		},
 	}
@@ -36,11 +36,11 @@ func newLockTree() (root *cobra.Command, replicateRuns *int) {
 	})
 	root.AddCommand(lock, replicate)
 	RequireKnown(root)
-	return root, &runs
+	return root, &calls
 }
 
-// executeLockTree runs args against a fresh tree, returning its help output.
-func executeLockTree(t *testing.T, args ...string) (string, error) {
+// invokeLockTree runs args against a fresh tree, returning its help output.
+func invokeLockTree(t *testing.T, args ...string) (string, error) {
 	t.Helper()
 	root, _ := newLockTree()
 	var out bytes.Buffer
@@ -64,29 +64,31 @@ func requireContains(t *testing.T, text string, parts ...string) {
 // TestUnknownSubcommandFails checks that a group refuses a command it does
 // not have, naming its commands and a near match.
 func TestUnknownSubcommandFails(t *testing.T) {
-	_, err := executeLockTree(t, "lock", "list")
+	_, err := invokeLockTree(t, "lock", "list")
 	unknown, ok := errors.AsType[*UnknownCommandError](err)
 	if !ok {
 		t.Fatalf("lock list: %v", err)
 	}
-	if !errors.Is(err, ErrUnknownCommand) || unknown.Name != "list" || unknown.Command.Name() != "lock" {
-		t.Fatalf("lock list: %+v", unknown)
+	if !errors.Is(err, ErrUnknownCommand) || unknown.Name != "list" ||
+		unknown.Command.Name() != "lock" {
+		t.Fatalf("lock list: %+v, want an *UnknownCommandError for list in lock", unknown)
 	}
-	if want := `unknown command "list" for "app lock"; its commands are break, show`; err.Error() != want {
+	want := `unknown command "list" for "app lock"; its commands are break, show`
+	if err.Error() != want {
 		t.Fatalf("message %q, want %q", err, want)
 	}
 
-	_, err = executeLockTree(t, "lock", "shwo")
+	_, err = invokeLockTree(t, "lock", "shwo")
 	requireContains(t, err.Error(), "did you mean show?")
 
-	_, err = executeLockTree(t, "nosuch")
+	_, err = invokeLockTree(t, "nosuch")
 	requireContains(t, err.Error(), `unknown command "nosuch" for "app"`, "lock, replicate")
 }
 
 // TestGroupAloneShowsHelp checks that a group with no argument still prints
 // its help and succeeds, without a usage line for flags it does not take.
 func TestGroupAloneShowsHelp(t *testing.T) {
-	help, err := executeLockTree(t, "lock")
+	help, err := invokeLockTree(t, "lock")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,12 +101,12 @@ func TestGroupAloneShowsHelp(t *testing.T) {
 // TestRunnableCommandStillHasItsAction checks that a command with subcommands
 // and an action of its own still runs it and shows its usage line.
 func TestRunnableCommandStillHasItsAction(t *testing.T) {
-	root, runs := newLockTree()
+	root, calls := newLockTree()
 	root.SetArgs([]string{"replicate", "main.sqlite"})
-	if err := root.Execute(); err != nil || *runs != 1 {
-		t.Fatalf("replicate ran %d times: %v", *runs, err)
+	if err := root.Execute(); err != nil || *calls != 1 {
+		t.Fatalf("replicate ran %d times, %v; want once", *calls, err)
 	}
-	help, err := executeLockTree(t, "replicate", "--help")
+	help, err := invokeLockTree(t, "replicate", "--help")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +128,7 @@ func TestUnknownSubcommandHelpFails(t *testing.T) {
 		{"help", "nosuch", "--help"},
 		{"help", "lock", "list", "--help"},
 	} {
-		help, err := executeLockTree(t, arguments...)
+		help, err := invokeLockTree(t, arguments...)
 		if !errors.Is(err, ErrUnknownCommand) {
 			t.Fatalf("%v: %v", arguments, err)
 		}
@@ -142,13 +144,13 @@ func TestUnknownSubcommandHelpFails(t *testing.T) {
 		{"help", "--help"},
 		{"help", "lock", "--help"},
 	} {
-		help, err := executeLockTree(t, arguments...)
+		help, err := invokeLockTree(t, arguments...)
 		if err != nil {
 			t.Fatalf("%v: %v", arguments, err)
 		}
 		requireContains(t, help, "[command]")
 	}
-	help, err := executeLockTree(t, "help", "lock", "show")
+	help, err := invokeLockTree(t, "help", "lock", "show")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,13 +160,13 @@ func TestUnknownSubcommandHelpFails(t *testing.T) {
 // TestHelpCompletesCommandPaths completes the commands of a group after
 // help, as cobra's own help command does, and no file names.
 func TestHelpCompletesCommandPaths(t *testing.T) {
-	completions, err := executeLockTree(t, cobra.ShellCompRequestCmd, "help", "lock", "")
+	completions, err := invokeLockTree(t, cobra.ShellCompRequestCmd, "help", "lock", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	requireContains(t, completions, "show", "break", ":4")
 
-	completions, err = executeLockTree(t, cobra.ShellCompRequestCmd, "help", "h")
+	completions, err = invokeLockTree(t, cobra.ShellCompRequestCmd, "help", "h")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,13 +180,13 @@ func TestHelpDenialWithChildContext(t *testing.T) {
 	for _, child := range root.Commands() {
 		child.SetContext(context.Background())
 	}
-	for run := range 2 {
+	for attempt := range 2 {
 		var out bytes.Buffer
 		root.SetOut(&out)
 		root.SetErr(&out)
 		root.SetArgs([]string{"lock", "bogus", "--help"})
 		if _, err := ExecuteContextC(t.Context(), root); !errors.Is(err, ErrUnknownCommand) {
-			t.Fatalf("run %d: lock bogus --help: %v", run, err)
+			t.Fatalf("attempt %d: lock bogus --help = %v, want ErrUnknownCommand", attempt, err)
 		}
 	}
 }
