@@ -27,4 +27,4 @@ if _, err := cobrastrict.ExecuteContextC(ctx, root); err != nil {
   available commands, and suggestions, so you can map it to your own exit code or error format.
 - Shell completion after `help` still works.
 
-Tested on the two newest Go releases. Licensed under the MIT license.
+Requires Go 1.27. Licensed under the MIT license.
